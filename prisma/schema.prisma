@@ -1,0 +1,263 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  USER
+  MENTOR
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DEACTIVATED
+}
+
+enum KycStatus {
+  NOT_STARTED
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum AccountType {
+  DEMO
+  LIVE
+}
+
+enum LedgerType {
+  DEMO_FUNDING
+  DEPOSIT
+  WITHDRAWAL
+  TRADE_PNL
+  COPY_FEE
+  ADJUSTMENT
+}
+
+enum TxStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum Side {
+  BUY
+  SELL
+}
+
+enum PositionStatus {
+  OPEN
+  CLOSED
+}
+
+enum CopyStatus {
+  ACTIVE
+  PAUSED
+  STOPPED
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  emailVerified Boolean  @default(false)
+  passwordHash  String
+  name          String
+  country       String?
+  role          Role     @default(USER)
+  status        UserStatus @default(ACTIVE)
+  totpSecret    String?
+  totpEnabled   Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  accounts      Account[]
+  tokens        RefreshToken[]
+  kyc           KycProfile?
+  mentor        Mentor?
+  notifications Notification[]
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  userAgent String?
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+}
+
+model KycProfile {
+  id         String    @id @default(cuid())
+  userId     String    @unique
+  status     KycStatus @default(NOT_STARTED)
+  data       Json?
+  reviewedBy String?
+  reviewedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  docs       KycDocument[]
+}
+
+model KycDocument {
+  id        String     @id @default(cuid())
+  kycId     String
+  kind      String
+  publicId  String
+  url       String
+  createdAt DateTime   @default(now())
+  kyc       KycProfile @relation(fields: [kycId], references: [id], onDelete: Cascade)
+}
+
+model Account {
+  id          String      @id @default(cuid())
+  userId      String
+  type        AccountType @default(DEMO)
+  currency    String      @default("USD")
+  createdAt   DateTime    @default(now())
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ledger      LedgerEntry[]
+  deposits    Deposit[]
+  withdrawals Withdrawal[]
+  positions   Position[]
+  copies      CopyRelation[]
+  @@index([userId])
+}
+
+// Append-only. Balance = SUM(amount). Minor units (cents).
+model LedgerEntry {
+  id             String     @id @default(cuid())
+  accountId      String
+  amount         BigInt
+  type           LedgerType
+  refType        String?
+  refId          String?
+  idempotencyKey String     @unique
+  createdAt      DateTime   @default(now())
+  account        Account    @relation(fields: [accountId], references: [id])
+  @@index([accountId, createdAt])
+}
+
+model Deposit {
+  id             String   @id @default(cuid())
+  accountId      String
+  method         String
+  amountMinor    BigInt
+  proofUrl       String?
+  proofPublicId  String?
+  status         TxStatus @default(PENDING)
+  reviewedBy     String?
+  idempotencyKey String   @unique
+  createdAt      DateTime @default(now())
+  account        Account  @relation(fields: [accountId], references: [id])
+  @@index([accountId, status])
+}
+
+model Withdrawal {
+  id             String   @id @default(cuid())
+  accountId      String
+  network        String
+  destination    String
+  amountMinor    BigInt
+  status         TxStatus @default(PENDING)
+  reviewedBy     String?
+  idempotencyKey String   @unique
+  createdAt      DateTime @default(now())
+  account        Account  @relation(fields: [accountId], references: [id])
+  @@index([accountId, status])
+}
+
+model DepositAddress {
+  method    String   @id
+  details   Json
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+}
+
+model Instrument {
+  id         String  @id @default(cuid())
+  symbol     String  @unique
+  name       String
+  assetClass String
+  active     Boolean @default(true)
+  positions  Position[]
+}
+
+model Position {
+  id           String         @id @default(cuid())
+  accountId    String
+  instrumentId String
+  side         Side
+  units        Decimal        @db.Decimal(28, 10)
+  entryPrice   Decimal        @db.Decimal(28, 10)
+  exitPrice    Decimal?       @db.Decimal(28, 10)
+  stopLoss     Decimal?       @db.Decimal(28, 10)
+  takeProfit   Decimal?       @db.Decimal(28, 10)
+  status       PositionStatus @default(OPEN)
+  sourceId     String?
+  openedAt     DateTime       @default(now())
+  closedAt     DateTime?
+  account      Account        @relation(fields: [accountId], references: [id])
+  instrument   Instrument     @relation(fields: [instrumentId], references: [id])
+  @@index([accountId, status])
+  @@index([sourceId])
+}
+
+model Mentor {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  handle    String   @unique
+  displayName String?
+  tag       String?
+  stats     Json?
+  bio       String?
+  riskScore Int      @default(3)
+  feeMinor  BigInt   @default(1000)
+  verified  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+  copiers   CopyRelation[]
+}
+
+model CopyRelation {
+  id              String     @id @default(cuid())
+  accountId       String
+  mentorId        String
+  allocationMinor BigInt
+  status          CopyStatus @default(ACTIVE)
+  createdAt       DateTime   @default(now())
+  account         Account    @relation(fields: [accountId], references: [id])
+  mentor          Mentor     @relation(fields: [mentorId], references: [id])
+  @@unique([accountId, mentorId])
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  title     String
+  body      String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, readAt])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String?
+  action    String
+  entity    String?
+  entityId  String?
+  meta      Json?
+  ip        String?
+  createdAt DateTime @default(now())
+  @@index([actorId, createdAt])
+}

@@ -29,6 +29,11 @@ export const fundsRoutes: FastifyPluginAsync = async (app) => {
   const myAccount = (userId: string) => prisma.account.findFirstOrThrow({ where: { userId, type: 'DEMO' } });
   const key = (header: unknown) => idemKey.parse(header);
 
+  app.get('/deposit-methods', async () => {
+    const rows = await prisma.depositAddress.findMany();
+    return Object.fromEntries(rows.map((row) => [row.method, row.details]));
+  });
+
   // Multipart text fields (amount, method) must precede the file.
   app.post('/deposits', { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, async (req, reply) => {
     const idempotencyKey = `dep:${req.user.sub}:${key(req.headers['idempotency-key'])}`;

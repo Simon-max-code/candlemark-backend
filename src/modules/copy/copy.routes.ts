@@ -10,15 +10,17 @@ const startBody = z.object({ allocation: money });
 const id = z.object({ id: z.string().min(1).max(40) });
 const period = () => new Date().toISOString().slice(0, 7);
 
-const mentorView = (mentor: any) => ({
-  id: mentor.id,
-  handle: mentor.handle,
-  name: mentor.user.name,
-  bio: mentor.bio,
-  risk: mentor.riskScore,
-  fee: mentor.feeMinor.toString(),
-  copiers: mentor._count.copiers,
-  verified: mentor.verified,
+const mentorView = (m: any) => ({
+  id: m.id,
+  handle: m.handle,
+  name: m.displayName ?? m.user.name,
+  tag: m.tag,
+  bio: m.bio,
+  risk: m.riskScore,
+  fee: m.feeMinor.toString(),
+  copiers: m.stats?.copiers ?? m._count.copiers,
+  stats: m.stats ?? {},
+  verified: m.verified,
 });
 
 export const copyRoutes: FastifyPluginAsync = async (app) => {
@@ -48,7 +50,7 @@ export const copyRoutes: FastifyPluginAsync = async (app) => {
       items: rows.map((copy) => ({
         id: copy.id,
         mentorId: copy.mentorId,
-        name: copy.mentor.user.name,
+        name: copy.mentor.displayName ?? copy.mentor.user.name,
         handle: copy.mentor.handle,
         allocation: copy.allocationMinor.toString(),
         status: copy.status,

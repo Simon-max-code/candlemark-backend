@@ -11,6 +11,7 @@ const schema = z.object({
   JWT_REFRESH_SECRET: z.string().min(32).refine((v) => process.env.NODE_ENV !== 'production' || !v.startsWith('change-me'), 'set a real secret'),
   CLOUDINARY_URL: z.string().optional(),
   BREVO_API_KEY: z.string().optional(),
+  FINNHUB_KEY: z.string().optional(),
   MAIL_FROM_EMAIL: z.string().email().default('no-reply@example.com'),
   MAIL_FROM_NAME: z.string().default('MentorsEdgePro'),
 });

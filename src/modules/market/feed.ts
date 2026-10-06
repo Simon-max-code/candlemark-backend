@@ -5,7 +5,16 @@ import { INSTRUMENTS, type Cls } from './instruments.js';
 
 const VOL: Record<Cls, number> = { forex: 0.0004, stocks: 0.002, crypto: 0.004, indices: 0.001, commodities: 0.0016 };
 const state = new Map<string, { price: number; open: number }>();
+const liveSyms = new Set<string>();
 export const feed = new EventEmitter();
+
+export function setLive(sym: string, price: number, open?: number) {
+  const s = state.get(sym);
+  if (!s || !(price > 0)) return;
+  if (!liveSyms.has(sym)) { liveSyms.add(sym); s.open = open || price; }
+  else if (open) s.open = open;
+  s.price = price;
+}
 
 export async function startFeed() {
   for (const i of INSTRUMENTS) {
@@ -24,8 +33,10 @@ function tick() {
   const out: Record<string, string> = {};
   for (const i of INSTRUMENTS) {
     const s = state.get(i.sym)!;
-    const next = s.price * (1 + (Math.random() - 0.5) * VOL[i.cls]);
-    s.price = Math.min(i.base * 1.2, Math.max(i.base * 0.8, next));
+    if (!liveSyms.has(i.sym)) {
+      const next = s.price * (1 + (Math.random() - 0.5) * VOL[i.cls]);
+      s.price = Math.min(i.base * 1.2, Math.max(i.base * 0.8, next));
+    }
     out[i.sym] = s.price.toFixed(i.dp);
   }
   redis.hset('prices', out).catch(() => {});

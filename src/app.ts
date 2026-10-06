@@ -15,6 +15,7 @@ import { walletRoutes } from './modules/wallet/wallet.routes.js';
 import { fundsRoutes } from './modules/wallet/funds.routes.js';
 import { marketRoutes } from './modules/market/market.routes.js';
 import { startFeed } from './modules/market/feed.js';
+import { startSources } from './modules/market/sources.js';
 import { attachWs } from './modules/market/ws.js';
 import { tradeRoutes } from './modules/trading/trading.routes.js';
 import { startTriggers } from './modules/trading/engine.js';
@@ -57,6 +58,7 @@ export async function buildApp() {
   await app.register(fundsRoutes, { prefix: '/wallet' });
   await app.register(marketRoutes, { prefix: '/markets' });
   const stopFeed = await startFeed();
+  startSources();
   app.addHook('onClose', async () => stopFeed());
   attachWs(app.server);
   startTriggers();

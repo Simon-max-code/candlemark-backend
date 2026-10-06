@@ -161,6 +161,23 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     return { ...publicUser(u), kycStatus: u.kyc?.status ?? 'NOT_STARTED', accounts: u.accounts };
   });
 
+  app.patch('/me', { preHandler: app.auth }, async (req) => {
+    const b = z.object({ name: z.string().trim().min(2).max(100), country: z.string().trim().max(60).optional() }).parse(req.body);
+    const u = await prisma.user.update({ where: { id: req.user.sub }, data: { name: b.name, country: b.country || null } });
+    await audit(u.id, 'auth.profile_update', req.ip);
+    return publicUser(u);
+  });
+
+  app.post('/change-password', { preHandler: app.auth, config: { rateLimit: { max: 5, timeWindow: '1 minute' } } }, async (req, reply) => {
+    const b = z.object({ current: z.string().min(1).max(128), password: z.string().min(8).max(128) }).parse(req.body);
+    const u = await prisma.user.findUniqueOrThrow({ where: { id: req.user.sub } });
+    if (!(await argon2.verify(u.passwordHash, b.current))) return reply.code(400).send({ error: 'INVALID_CREDENTIALS' });
+    await prisma.user.update({ where: { id: u.id }, data: { passwordHash: await argon2.hash(b.password) } });
+    await prisma.refreshToken.updateMany({ where: { userId: u.id, revokedAt: null }, data: { revokedAt: new Date() } });
+    await audit(u.id, 'auth.password_change', req.ip);
+    return { ok: true };
+  });
+
   app.post('/2fa/setup', { preHandler: app.auth }, async (req) => {
     const u = await prisma.user.findUniqueOrThrow({ where: { id: req.user.sub } });
     const secret = authenticator.generateSecret();

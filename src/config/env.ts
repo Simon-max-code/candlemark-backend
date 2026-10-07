@@ -12,6 +12,7 @@ const schema = z.object({
   CLOUDINARY_URL: z.string().optional(),
   BREVO_API_KEY: z.string().optional(),
   FINNHUB_KEY: z.string().optional(),
+  TWELVE_KEY: z.string().optional(),
   MAIL_FROM_EMAIL: z.string().email().default('no-reply@example.com'),
   MAIL_FROM_NAME: z.string().default('MentorsEdgePro'),
 });

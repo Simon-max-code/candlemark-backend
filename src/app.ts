@@ -79,6 +79,7 @@ export async function buildApp() {
   });
 
   app.get('/health', async () => ({ ok: true, redis: (await redis.ping()) === 'PONG' }));
+  app.get('/ping', { config: { rateLimit: false } }, async () => ({ ok: true }));
 
   return app;
 }

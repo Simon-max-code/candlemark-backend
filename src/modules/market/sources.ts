@@ -37,4 +37,25 @@ async function finnhub() {
   connect();
 }
 
-export function startSources() { binance(); void finnhub(); }
+const TD: Record<string, string> = {
+  'XAU/USD': 'XAU/USD', 'XAG/USD': 'XAG/USD', 'WTI': 'WTI/USD', 'NATGAS': 'NG/USD',
+  'US500': 'SPX', 'NAS100': 'IXIC', 'US30': 'DJI', 'UK100': 'FTSE',
+};
+
+async function twelve() {
+  const key = env.TWELVE_KEY;
+  if (!key) return;
+  const run = async () => {
+    const r: any = await fetch(`https://api.twelvedata.com/quote?symbol=${Object.values(TD).join(',')}&apikey=${key}`)
+      .then((x) => x.json()).catch(() => null);
+    if (!r) return;
+    for (const [mine, theirs] of Object.entries(TD)) {
+      const q = r[theirs] ?? r[theirs.replace('/', '')];
+      if (q?.close) setLive(mine, +q.close, +q.previous_close || undefined);
+    }
+  };
+  await run();
+  setInterval(run, 15 * 60_000);
+}
+
+export function startSources() { binance(); void finnhub(); void twelve(); }

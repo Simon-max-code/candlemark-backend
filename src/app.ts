@@ -22,6 +22,7 @@ import { startTriggers } from './modules/trading/engine.js';
 import { copyRoutes } from './modules/copy/copy.routes.js';
 import { adminRoutes } from './modules/admin/admin.routes.js';
 import { notificationRoutes } from './modules/notifications/notifications.routes.js';
+import { supportRoutes } from './modules/support/support.routes.js';
 
 export async function buildApp() {
   const app = Fastify({
@@ -66,6 +67,7 @@ export async function buildApp() {
   await app.register(copyRoutes, { prefix: '/copy' });
   await app.register(adminRoutes, { prefix: '/admin' });
   await app.register(notificationRoutes, { prefix: '/notifications' });
+  await app.register(supportRoutes, { prefix: '/support' });
 
   app.setErrorHandler((err, _req, reply) => {
     if (err instanceof ZodError)

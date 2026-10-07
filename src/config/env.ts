@@ -15,6 +15,7 @@ const schema = z.object({
   TWELVE_KEY: z.string().optional(),
   MAIL_FROM_EMAIL: z.string().email().default('no-reply@example.com'),
   MAIL_FROM_NAME: z.string().default('MentorsEdgePro'),
+  SUPPORT_EMAIL: z.string().email().optional(),
 });
 
 export const env = schema.parse(process.env);

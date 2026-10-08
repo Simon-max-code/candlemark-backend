@@ -13,7 +13,7 @@ export const walletRoutes: FastifyPluginAsync = async (app) => {
   app.addHook('preHandler', app.auth);
 
   const myAccount = (userId: string) =>
-    prisma.account.findFirstOrThrow({ where: { userId, type: 'DEMO' } });
+    prisma.account.findFirstOrThrow({ where: { userId, type: 'LIVE' } });
 
   app.get('/balance', async (req) => {
     const a = await myAccount(req.user.sub);

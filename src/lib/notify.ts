@@ -1,5 +1,5 @@
 import { prisma } from './prisma.js';
-import { sendMail, tpl } from './mail.js';
+import { sendMail, tpl, APP } from './mail.js';
 
 export const usd = (cents: bigint) => {
   const absolute = cents < 0n ? -cents : cents;
@@ -12,5 +12,5 @@ export async function notify(userId: string, title: string, body: string, email 
   await prisma.notification.create({ data: { userId, title, body } }).catch(() => {});
   if (!email) return;
   const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
-  if (user) await sendMail({ to: user.email, subject: title, html: tpl(title, body) }).catch(() => {});
+  if (user) await sendMail({ to: user.email, subject: title, html: tpl(title, body, { label: 'Open dashboard', url: `${APP}/dashboard.html` }) }).catch(() => {});
 }

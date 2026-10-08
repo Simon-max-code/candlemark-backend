@@ -26,7 +26,7 @@ const wd = (w: Withdrawal) => ({ id: w.id, network: w.network, destination: w.de
 
 export const fundsRoutes: FastifyPluginAsync = async (app) => {
   app.addHook('preHandler', app.auth);
-  const myAccount = (userId: string) => prisma.account.findFirstOrThrow({ where: { userId, type: 'DEMO' } });
+  const myAccount = (userId: string) => prisma.account.findFirstOrThrow({ where: { userId, type: 'LIVE' } });
   const key = (header: unknown) => idemKey.parse(header);
 
   app.get('/deposit-methods', async () => {

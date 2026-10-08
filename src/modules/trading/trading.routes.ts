@@ -44,7 +44,7 @@ const view = (position: any) => {
 
 export const tradeRoutes: FastifyPluginAsync = async (app) => {
   app.addHook('preHandler', app.auth);
-  const myAccount = (userId: string) => prisma.account.findFirstOrThrow({ where: { userId, type: 'DEMO' } });
+  const myAccount = (userId: string) => prisma.account.findFirstOrThrow({ where: { userId, type: 'LIVE' } });
 
   app.post('/', { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } }, async (req, reply) => {
     const key = idemKey.parse(req.headers['idempotency-key']);

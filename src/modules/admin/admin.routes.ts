@@ -145,7 +145,7 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
       direction: z.enum(['CREDIT', 'DEBIT']), amount: money.refine((amount) => amount > 0n), reason: s(300),
     }).parse(req.body);
     if (!(await stepUp(req))) return reply.code(403).send(DENY);
-    const account = await prisma.account.findFirst({ where: { userId: id, type: 'DEMO' } });
+    const account = await prisma.account.findFirst({ where: { userId: id, type: 'LIVE' } });
     if (!account) return reply.code(404).send(NF);
     await prisma.$transaction((tx) => postEntry(tx, {
       accountId: account.id, amount: body.direction === 'CREDIT' ? body.amount : -body.amount,

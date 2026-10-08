@@ -23,7 +23,7 @@ export async function openPosition(a: {
   sl?: string; tp?: string; key: string; sourceId?: string;
 }) {
   const price = px(a.sym);
-  if (!price) throw err('UNKNOWN_SYMBOL');
+  if (!price) throw err('PRICE_UNAVAILABLE', 503);
   const buy = a.side === 'BUY';
   if (a.sl && (buy ? new D(a.sl).gte(price) : new D(a.sl).lte(price))) throw err('BAD_STOP_LOSS');
   if (a.tp && (buy ? new D(a.tp).lte(price) : new D(a.tp).gte(price))) throw err('BAD_TAKE_PROFIT');
@@ -66,7 +66,8 @@ export async function closePosition(id: string, accountId?: string) {
   const position = await prisma.position.findUnique({ where: { id }, include: { instrument: true } });
   if (!position || (accountId && position.accountId !== accountId)) throw err('NOT_FOUND', 404);
   if (position.status !== 'OPEN') throw err('ALREADY_CLOSED', 409);
-  const exit = px(position.instrument.symbol)!;
+  const exit = px(position.instrument.symbol);
+  if (!exit) throw err('PRICE_UNAVAILABLE', 503);
 
   return prisma.$transaction(async (tx) => {
     const result = await tx.position.updateMany({

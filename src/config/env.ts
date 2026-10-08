@@ -6,6 +6,7 @@ const schema = z.object({
   DATABASE_URL: z.string().url(),
   REDIS_URL: z.string().url(),
   CORS_ORIGIN: z.string().min(1),
+  APP_URL: z.string().url().optional(),
   DATA_ENC_KEY: z.string().min(32),
   JWT_ACCESS_SECRET: z.string().min(32).refine((v) => process.env.NODE_ENV !== 'production' || !v.startsWith('change-me'), 'set a real secret'),
   JWT_REFRESH_SECRET: z.string().min(32).refine((v) => process.env.NODE_ENV !== 'production' || !v.startsWith('change-me'), 'set a real secret'),

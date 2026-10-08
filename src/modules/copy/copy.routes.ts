@@ -25,7 +25,7 @@ const mentorView = (m: any) => ({
 
 export const copyRoutes: FastifyPluginAsync = async (app) => {
   app.addHook('preHandler', app.auth);
-  const myAccount = (userId: string) => prisma.account.findFirstOrThrow({ where: { userId, type: 'DEMO' } });
+  const myAccount = (userId: string) => prisma.account.findFirstOrThrow({ where: { userId, type: 'LIVE' } });
 
   app.get('/mentors', async () => {
     const rows = await prisma.mentor.findMany({

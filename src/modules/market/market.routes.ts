@@ -9,8 +9,10 @@ export const marketRoutes: FastifyPluginAsync = async (app) => {
   app.get('/', async (req) => {
     const { asset } = q.parse(req.query);
     return {
-      items: INSTRUMENTS.filter((i) => !asset || i.cls === asset)
-        .map((i) => ({ sym: i.sym, name: i.name, asset: i.cls, ...quote(i.sym)! })),
+      items: INSTRUMENTS.filter((i) => !asset || i.cls === asset).flatMap((i) => {
+        const q = quote(i.sym);
+        return q ? [{ sym: i.sym, name: i.name, asset: i.cls, ...q }] : [];
+      }),
     };
   });
 };

@@ -51,11 +51,8 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     const passwordHash = await argon2.hash(b.password);
     const user = await prisma.$transaction(async (tx) => {
       const u = await tx.user.create({
-        data: { email: b.email, name: b.name, country: b.country, passwordHash, accounts: { create: { type: 'DEMO' } } },
+        data: { email: b.email, name: b.name, country: b.country, passwordHash, accounts: { create: { type: 'LIVE' } } },
         include: { accounts: true },
-      });
-      await tx.ledgerEntry.create({
-        data: { accountId: u.accounts[0].id, amount: 1_000_000n, type: 'DEMO_FUNDING', idempotencyKey: `demo-fund:${u.accounts[0].id}` },
       });
       await tx.kycProfile.create({ data: { userId: u.id } });
       return u;
@@ -158,7 +155,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       include: { kyc: { select: { status: true } }, accounts: { select: { id: true, type: true, currency: true } } },
     });
     if (!u) return reply.code(401).send({ error: 'UNAUTHORIZED' });
-    return { ...publicUser(u), kycStatus: u.kyc?.status ?? 'NOT_STARTED', accounts: u.accounts };
+    return { ...publicUser(u), createdAt: u.createdAt, kycStatus: u.kyc?.status ?? 'NOT_STARTED', accounts: u.accounts };
   });
 
   app.patch('/me', { preHandler: app.auth }, async (req) => {

@@ -1,12 +1,13 @@
 import { EventEmitter } from 'node:events';
 import { prisma } from '../../lib/prisma.js';
 import { redis } from '../../lib/redis.js';
-import { INSTRUMENTS, type Cls } from './instruments.js';
+import { INSTRUMENTS } from './instruments.js';
 
-const VOL: Record<Cls, number> = { forex: 0.0004, stocks: 0.002, crypto: 0.004, indices: 0.001, commodities: 0.0016 };
 const state = new Map<string, { price: number; open: number }>();
 const liveSyms = new Set<string>();
+const seen = new Map<string, number>();
 export const feed = new EventEmitter();
+export const isLive = (sym: string) => Date.now() - (seen.get(sym) ?? 0) < 20 * 60_000;
 
 export function setLive(sym: string, price: number, open?: number) {
   const s = state.get(sym);
@@ -14,6 +15,7 @@ export function setLive(sym: string, price: number, open?: number) {
   if (!liveSyms.has(sym)) { liveSyms.add(sym); s.open = open || price; }
   else if (open) s.open = open;
   s.price = price;
+  seen.set(sym, Date.now());
 }
 
 export async function startFeed() {
@@ -31,23 +33,17 @@ export async function startFeed() {
 
 function tick() {
   const out: Record<string, string> = {};
-  for (const i of INSTRUMENTS) {
-    const s = state.get(i.sym)!;
-    if (!liveSyms.has(i.sym)) {
-      const next = s.price * (1 + (Math.random() - 0.5) * VOL[i.cls]);
-      s.price = Math.min(i.base * 1.2, Math.max(i.base * 0.8, next));
-    }
-    out[i.sym] = s.price.toFixed(i.dp);
-  }
+  for (const i of INSTRUMENTS) if (isLive(i.sym)) out[i.sym] = state.get(i.sym)!.price.toFixed(i.dp);
+  if (!Object.keys(out).length) return;
   redis.hset('prices', out).catch(() => {});
   feed.emit('tick', out);
 }
 
 export function quote(sym: string) {
   const s = state.get(sym);
-  if (!s) return null;
+  if (!s || !isLive(sym)) return null;
   return { price: s.price, chg: Number((((s.price - s.open) / s.open) * 100).toFixed(2)) };
 }
 
 export const snapshot = () =>
-  Object.fromEntries(INSTRUMENTS.map((i) => [i.sym, state.get(i.sym)!.price.toFixed(i.dp)]));
+  Object.fromEntries(INSTRUMENTS.filter((i) => isLive(i.sym)).map((i) => [i.sym, state.get(i.sym)!.price.toFixed(i.dp)]));

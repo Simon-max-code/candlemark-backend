@@ -5,8 +5,28 @@ import { env } from '../config/env.js';
 type Mail = { to: string; subject: string; html: string };
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
-export const tpl = (title: string, body: string) =>
-  `<div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;padding:24px"><h2 style="margin:0 0 12px">${esc(title)}</h2><p style="font-size:15px;line-height:1.5">${esc(body)}</p><p style="color:#888;font-size:12px;margin-top:24px">MentorsEdgePro</p></div>`;
+export const APP = (env.APP_URL ?? env.CORS_ORIGIN.split(',')[0]).replace(/\/$/, '');
+
+const shell = (pre: string, inner: string) => `<!doctype html><html><body style="margin:0;padding:0;background:#F4F6F8">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0">${esc(pre)}</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F4F6F8;padding:28px 12px"><tr><td align="center">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;font-family:Inter,'Segoe UI',Arial,sans-serif">
+<tr><td style="background:#0A0D12;border-radius:16px 16px 0 0;padding:22px 32px;font-size:20px;font-weight:700;color:#FFFFFF">Mentorsedge<span style="color:#00E6A0">Pro</span></td></tr>
+<tr><td style="background:#FFFFFF;padding:36px 32px;color:#1A2230;font-size:15px;line-height:1.6;border-left:1px solid #E3E8EE;border-right:1px solid #E3E8EE">${inner}</td></tr>
+<tr><td style="background:#FFFFFF;border:1px solid #E3E8EE;border-top:0;border-radius:0 0 16px 16px;padding:0 32px 28px;font-size:12px;line-height:1.6;color:#8A93A3">
+<hr style="border:0;border-top:1px solid #E3E8EE;margin:0 0 16px">Need help? Contact <a href="${APP}/support.html" style="color:#00A878">Support</a>. We will never ask for your password or 2FA code.<br>Trading leveraged products carries a high risk of loss.</td></tr>
+<tr><td style="padding:16px;text-align:center;font-size:11px;color:#8A93A3">&copy; ${new Date().getFullYear()} MentorsEdgePro</td></tr>
+</table></td></tr></table></body></html>`;
+
+export const tpl = (title: string, body: string, cta?: { label: string; url: string }) => shell(title,
+  `<h1 style="margin:0 0 14px;font-size:22px;line-height:1.3;color:#0A0D12">${esc(title)}</h1><p style="margin:0 0 22px">${esc(body)}</p>` +
+  (cta ? `<a href="${esc(cta.url)}" style="display:inline-block;background:#00E6A0;color:#02110C;font-weight:700;text-decoration:none;padding:13px 26px;border-radius:10px">${esc(cta.label)}</a>` : ''));
+
+export const otpTpl = (code: string, purpose: 'verify' | 'reset') => shell(`Your code is ${code}`,
+  `<h1 style="margin:0 0 12px;font-size:22px;color:#0A0D12">${purpose === 'verify' ? 'Verify your email' : 'Reset your password'}</h1>
+<p style="margin:0 0 22px">${purpose === 'verify' ? 'Welcome to MentorsEdgePro. Enter this code to confirm your email address.' : 'Use this code to choose a new password.'}</p>
+<div style="font:700 34px 'Courier New',monospace;letter-spacing:10px;text-align:center;background:#F0FBF7;border:1px dashed #00C98A;border-radius:12px;padding:18px 0 18px 10px;color:#0A0D12">${esc(code)}</div>
+<p style="margin:22px 0 0;font-size:13px;color:#5C6577">This code expires in 10 minutes. If you didn't request it, you can safely ignore this email.</p>`);
 
 const queue = new Queue<Mail>('mail', {
   connection: redis,

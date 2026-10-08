@@ -1,7 +1,7 @@
 import { createHmac, randomInt, timingSafeEqual } from 'node:crypto';
 import { redis } from '../../lib/redis.js';
 import { env } from '../../config/env.js';
-import { sendMail, tpl } from '../../lib/mail.js';
+import { sendMail, otpTpl } from '../../lib/mail.js';
 
 export type Purpose = 'verify' | 'reset';
 const TTL = 600, MAX_TRIES = 5;
@@ -14,7 +14,7 @@ export async function sendOtp(userId: string, email: string, purpose: Purpose) {
   await redis.multi().set(`otp:${purpose}:${userId}`, hash(code), 'EX', TTL).del(`otp:tries:${purpose}:${userId}`).exec();
   await sendMail({
     to: email, subject: subj[purpose],
-    html: tpl(`Your code: ${code}`, `Use this code to continue. It expires in 10 minutes. If you didn't request it, ignore this email.`),
+    html: otpTpl(code, purpose),
   });
   return true;
 }

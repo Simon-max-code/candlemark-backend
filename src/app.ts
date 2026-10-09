@@ -39,7 +39,7 @@ export async function buildApp() {
   await app.register(helmet, { contentSecurityPolicy: false, crossOriginResourcePolicy: { policy: 'same-site' } });
   await app.register(cors, { origin: env.CORS_ORIGIN.split(','), credentials: true, methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] });
   await app.register(cookie);
-  await app.register(rateLimit, { max: 100, timeWindow: '1 minute', redis, nameSpace: 'rl:' });
+  await app.register(rateLimit, { max: 100, timeWindow: '1 minute', redis, nameSpace: 'rl:', skipOnError: true });
   await app.register(underPressure, { maxEventLoopDelay: 2000, retryAfter: 10 });
 
   app.addHook('onRequest', async (req, reply) => {

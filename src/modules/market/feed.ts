@@ -1,6 +1,5 @@
 import { EventEmitter } from 'node:events';
 import { prisma } from '../../lib/prisma.js';
-import { redis } from '../../lib/redis.js';
 import { INSTRUMENTS } from './instruments.js';
 
 const state = new Map<string, { price: number; open: number }>();
@@ -35,7 +34,6 @@ function tick() {
   const out: Record<string, string> = {};
   for (const i of INSTRUMENTS) if (isLive(i.sym)) out[i.sym] = state.get(i.sym)!.price.toFixed(i.dp);
   if (!Object.keys(out).length) return;
-  redis.hset('prices', out).catch(() => {});
   feed.emit('tick', out);
 }
 

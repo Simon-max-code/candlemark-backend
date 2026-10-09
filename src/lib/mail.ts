@@ -1,5 +1,3 @@
-import { Queue, Worker } from 'bullmq';
-import { redis } from './redis.js';
 import { env } from '../config/env.js';
 
 type Mail = { to: string; subject: string; html: string };
@@ -28,28 +26,36 @@ export const otpTpl = (code: string, purpose: 'verify' | 'reset') => shell(`Your
 <div style="font:700 34px 'Courier New',monospace;letter-spacing:10px;text-align:center;background:#F0FBF7;border:1px dashed #00C98A;border-radius:12px;padding:18px 0 18px 10px;color:#0A0D12">${esc(code)}</div>
 <p style="margin:22px 0 0;font-size:13px;color:#5C6577">This code expires in 10 minutes. If you didn't request it, you can safely ignore this email.</p>`);
 
-const queue = new Queue<Mail>('mail', {
-  connection: redis,
-  defaultJobOptions: { attempts: 5, backoff: { type: 'exponential', delay: 5000 }, removeOnComplete: 100, removeOnFail: 500 },
-});
-
-export const sendMail = (m: Mail) => queue.add('send', m);
-
-export function startMailWorker() {
-  return new Worker<Mail>('mail', async ({ data }) => {
-    if (!env.BREVO_API_KEY) {
-      if (env.NODE_ENV === 'production') throw new Error('BREVO_API_KEY missing');
-      console.log(`[mail:dev] to=${data.to} | ${data.subject} | ${data.html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ')}`);
-      return;
-    }
-    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
-      method: 'POST',
-      headers: { 'api-key': env.BREVO_API_KEY, 'content-type': 'application/json', accept: 'application/json' },
-      body: JSON.stringify({
-        sender: { email: env.MAIL_FROM_EMAIL, name: env.MAIL_FROM_NAME },
-        to: [{ email: data.to }], subject: data.subject, htmlContent: data.html,
-      }),
-    });
-    if (!response.ok) throw new Error(`brevo ${response.status}`);
-  }, { connection: redis, concurrency: 5 });
+async function deliver(data: Mail) {
+  if (!env.BREVO_API_KEY) {
+    if (env.NODE_ENV === 'production') throw new Error('BREVO_API_KEY missing');
+    console.log(`[mail:dev] to=${data.to} | ${data.subject}`);
+    return;
+  }
+  const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: { 'api-key': env.BREVO_API_KEY, 'content-type': 'application/json', accept: 'application/json' },
+    body: JSON.stringify({
+      sender: { email: env.MAIL_FROM_EMAIL, name: env.MAIL_FROM_NAME },
+      to: [{ email: data.to }], subject: data.subject, htmlContent: data.html,
+    }),
+  });
+  if (!response.ok) throw new Error(`brevo ${response.status}`);
 }
+
+export const sendMail = async (m: Mail) => {
+  void (async () => {
+    for (let i = 0; i < 4; i++) {
+      try {
+        await deliver(m);
+        return;
+      } catch (error) {
+        if (i === 3) {
+          console.error('mail failed', error);
+          return;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 2000 * 2 ** i));
+      }
+    }
+  })();
+};

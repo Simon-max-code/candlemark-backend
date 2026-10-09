@@ -12,7 +12,7 @@ const kycBody = z.object({
   phone: z.string().regex(/^[\d+\s()-]{7,20}$/),
   employment: s(40), incomeSource: s(60), industry: s(120), education: s(40),
   annual: s(30), netWorth: s(30), volume: s(30), frequency: s(40),
-  purpose: s(300, 10), experience: s(60), currency: s(60),
+  purpose: s(300, 3), experience: s(60), currency: s(60),
 }).refine((b) => {
   const [d, m, y] = b.dob.split('/').map(Number);
   const dt = new Date(y, m - 1, d);

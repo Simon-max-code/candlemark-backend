@@ -10,7 +10,14 @@ type Dec = Prisma.Decimal;
 const dp = new Map(INSTRUMENTS.map((i) => [i.sym, i.dp]));
 const err = (code: string, statusCode = 400) => Object.assign(new Error(code), { statusCode });
 
+// Tradable price: null when the market is closed / feed is stale, so nothing executes on old quotes.
 export const px = (sym: string): Dec | null => {
+  const q = quote(sym);
+  return q && !q.closed ? new D(q.price.toFixed(dp.get(sym)!)) : null;
+};
+
+// Display-only price: last known value, even if the market is closed.
+export const pxAny = (sym: string): Dec | null => {
   const q = quote(sym);
   return q ? new D(q.price.toFixed(dp.get(sym)!)) : null;
 };

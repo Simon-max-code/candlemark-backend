@@ -8,9 +8,9 @@ export const usd = (cents: bigint) => {
   return `${cents < 0n ? '-' : ''}${whole}.${fraction}`;
 };
 
-export async function notify(userId: string, title: string, body: string, email = false) {
+export async function notify(userId: string, title: string, body: string, email = false, rows?: [string, string][]) {
   await prisma.notification.create({ data: { userId, title, body } }).catch(() => {});
   if (!email) return;
   const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
-  if (user) await sendMail({ to: user.email, subject: title, html: tpl(title, body, { label: 'Open dashboard', url: `${APP}/dashboard.html` }) }).catch(() => {});
+  if (user) await sendMail({ to: user.email, subject: title, html: tpl(title, body, { label: 'Open dashboard', url: `${APP}/dashboard.html` }, rows) }).catch(() => {});
 }

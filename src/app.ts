@@ -20,6 +20,7 @@ import { attachWs } from './modules/market/ws.js';
 import { tradeRoutes } from './modules/trading/trading.routes.js';
 import { startTriggers } from './modules/trading/engine.js';
 import { copyRoutes } from './modules/copy/copy.routes.js';
+import { mentorRoutes } from './modules/mentor/mentor.routes.js';
 import { publicMentorRoutes } from './modules/copy/public.routes.js';
 import { calendarRoutes } from './modules/calendar/calendar.routes.js';
 import { adminRoutes } from './modules/admin/admin.routes.js';
@@ -67,6 +68,7 @@ export async function buildApp() {
   startTriggers();
   await app.register(tradeRoutes, { prefix: '/trades' });
   await app.register(copyRoutes, { prefix: '/copy' });
+  await app.register(mentorRoutes, { prefix: '/mentor' });
   await app.register(publicMentorRoutes, { prefix: '/mentors' });
   await app.register(calendarRoutes, { prefix: '/calendar' });
   await app.register(adminRoutes, { prefix: '/admin' });

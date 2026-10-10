@@ -1,5 +1,7 @@
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
+import argon2 from 'argon2';
+import { randomBytes } from 'node:crypto';
 import { authenticator } from 'otplib';
 import { prisma } from '../../lib/prisma.js';
 import { decrypt } from '../../lib/crypto.js';
@@ -10,6 +12,7 @@ import { signedUrl } from '../../lib/cloudinary.js';
 import { postEntry, balanceOf } from '../wallet/ledger.js';
 import { money, idemKey } from '../wallet/money.js';
 import { notify, usd } from '../../lib/notify.js';
+import { sendMail, tpl, APP } from '../../lib/mail.js';
 
 const s = (max = 200) => z.string().trim().min(1).max(max);
 const idP = z.object({ id: s(40) });
@@ -267,8 +270,17 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
 
   app.post('/mentors', async (req, reply) => {
     const body = createMentor.parse(req.body);
-    const user = await prisma.user.findUnique({ where: { email: body.email } });
-    if (!user) return reply.code(404).send({ error: 'USER_NOT_FOUND' });
+    let user = await prisma.user.findUnique({ where: { email: body.email } });
+    let invited = false;
+    if (!user) {
+      if (!body.displayName) return reply.code(400).send({ error: 'NAME_REQUIRED' });
+      user = await prisma.user.create({ data: {
+        email: body.email, name: body.displayName, role: 'MENTOR', emailVerified: true,
+        passwordHash: await argon2.hash(randomBytes(24).toString('base64url')),
+        accounts: { create: { type: 'LIVE' } }, kyc: { create: {} },
+      } });
+      invited = true;
+    }
     if (await prisma.mentor.findFirst({ where: { OR: [{ userId: user.id }, { handle: body.handle }] } }))
       return reply.code(409).send({ error: 'MENTOR_EXISTS' });
     const mentor = await prisma.$transaction(async (tx) => {
@@ -279,6 +291,9 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
       return row;
     });
     await audit(req.user.sub, 'admin.mentor_create', req.ip, { id: mentor.id, userId: user.id });
+    if (invited) void sendMail({ to: body.email, subject: 'Your MentorsEdgePro mentor account', html: tpl('Your mentor account is ready',
+      'An admin created a mentor account for you. Set your password first, then log in to the mentor portal.',
+      { label: 'Set your password', url: `${APP}/login.html#forgot` }) }).catch(() => {});
     return reply.code(201).send({ id: mentor.id });
   });
 

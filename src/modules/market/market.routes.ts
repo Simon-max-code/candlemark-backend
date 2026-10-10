@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { INSTRUMENTS } from './instruments.js';
+import { INSTRUMENTS, pipInfo } from './instruments.js';
 import { quote } from './feed.js';
 
 const q = z.object({ asset: z.enum(['forex', 'stocks', 'crypto', 'indices', 'commodities']).optional() });
@@ -11,7 +11,7 @@ export const marketRoutes: FastifyPluginAsync = async (app) => {
     return {
       items: INSTRUMENTS.filter((i) => !asset || i.cls === asset).flatMap((i) => {
         const q = quote(i.sym);
-        return q ? [{ sym: i.sym, name: i.name, asset: i.cls, ...q }] : [];
+        return q ? [{ sym: i.sym, name: i.name, asset: i.cls, pip: pipInfo(i.sym).pip, dp: i.dp, ...q }] : [];
       }),
     };
   });

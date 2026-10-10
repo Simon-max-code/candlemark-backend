@@ -4,6 +4,8 @@ import { postEntry } from '../wallet/ledger.js';
 import { INSTRUMENTS } from '../market/instruments.js';
 import { quote, feed } from '../market/feed.js';
 import { notify } from '../../lib/notify.js';
+import { mirrorClose } from '../copy/copy.js';
+import { usd } from '../../lib/notify.js';
 
 const D = Prisma.Decimal;
 type Dec = Prisma.Decimal;
@@ -112,8 +114,9 @@ export function startTriggers() {
         if (stopLoss || takeProfit) {
           const result = await closePosition(position.id).catch(() => null);
           if (result) {
+            mirrorClose(position.id).catch(() => {});
             const account = await prisma.account.findUnique({ where: { id: position.accountId }, select: { userId: true } });
-            if (account) void notify(account.userId, `${position.instrument.symbol} ${stopLoss ? 'stop loss' : 'take profit'} hit`, `Position closed at ${result.exitPrice}.`).catch(() => {});
+            if (account) void notify(account.userId, `${position.instrument.symbol} ${stopLoss ? 'stop loss' : 'take profit'} hit`, `Position closed at ${result.exitPrice}. Result: $${usd(BigInt(result.pnl))}.`, true).catch(() => {});
           }
         }
       }

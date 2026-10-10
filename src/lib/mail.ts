@@ -16,8 +16,10 @@ const shell = (pre: string, inner: string) => `<!doctype html><html><body style=
 <tr><td style="padding:16px;text-align:center;font-size:11px;color:#8A93A3">&copy; ${new Date().getFullYear()} MentorsEdgePro</td></tr>
 </table></td></tr></table></body></html>`;
 
-export const tpl = (title: string, body: string, cta?: { label: string; url: string }) => shell(title,
+export const tpl = (title: string, body: string, cta?: { label: string; url: string }, rows?: [string, string][]) => shell(title,
   `<h1 style="margin:0 0 14px;font-size:22px;line-height:1.3;color:#0A0D12">${esc(title)}</h1><p style="margin:0 0 22px">${esc(body)}</p>` +
+  (rows?.length ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #E3E8EE;border-radius:12px;margin:0 0 22px;border-collapse:separate;overflow:hidden">${rows.map(([k, v]) =>
+    `<tr><td style="padding:11px 14px;color:#5C6577;font-size:13px;border-bottom:1px solid #EEF1F4">${esc(k)}</td><td style="padding:11px 14px;text-align:right;font-weight:600;border-bottom:1px solid #EEF1F4">${esc(v)}</td></tr>`).join('')}</table>` : '') +
   (cta ? `<a href="${esc(cta.url)}" style="display:inline-block;background:#00E6A0;color:#02110C;font-weight:700;text-decoration:none;padding:13px 26px;border-radius:10px">${esc(cta.label)}</a>` : ''));
 
 export const otpTpl = (code: string, purpose: 'verify' | 'reset') => shell(`Your code is ${code}`,

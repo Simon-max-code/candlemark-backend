@@ -25,3 +25,10 @@ export const INSTRUMENTS: Inst[] = [
   { sym: 'WTI', name: 'Crude Oil WTI', cls: 'commodities', base: 78.44, dp: 2 },
   { sym: 'NATGAS', name: 'Natural Gas', cls: 'commodities', base: 2.31, dp: 3 },
 ];
+
+export const pipInfo = (sym: string) => {
+  const i = INSTRUMENTS.find((x) => x.sym === sym);
+  if (!i) return { pip: 1, unit: 'points' };
+  if (i.cls === 'forex') return { pip: 10 ** -i.dp, unit: 'pips' };
+  return { pip: i.cls === 'crypto' || i.cls === 'indices' ? 1 : 0.01, unit: 'points' };
+};

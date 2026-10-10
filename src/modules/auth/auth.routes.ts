@@ -181,15 +181,15 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
   const reset2faBody = z.object({ email: z.string().trim().toLowerCase().email(), password: z.string().min(1).max(128) });
   async function verifyAdminCreds(b: z.infer<typeof reset2faBody>) {
     const user = await prisma.user.findUnique({ where: { email: b.email } });
-    if (!user || !(await argon2.verify(user.passwordHash, b.password))) return { err: 'INVALID_CREDENTIALS' as const, code: 401 };
-    if (user.status !== 'ACTIVE') return { err: 'ACCOUNT_SUSPENDED' as const, code: 403 };
-    if (user.role !== 'ADMIN') return { err: 'FORBIDDEN' as const, code: 403 };
-    return { user };
+    if (!user || !(await argon2.verify(user.passwordHash, b.password))) return { ok: false as const, err: 'INVALID_CREDENTIALS' as const, code: 401 };
+    if (user.status !== 'ACTIVE') return { ok: false as const, err: 'ACCOUNT_SUSPENDED' as const, code: 403 };
+    if (user.role !== 'ADMIN') return { ok: false as const, err: 'FORBIDDEN' as const, code: 403 };
+    return { ok: true as const, user };
   }
 
   app.post('/2fa/reset-request', { config: { rateLimit: { max: 3, timeWindow: '1 minute' } } }, async (req, reply) => {
     const r = await verifyAdminCreds(reset2faBody.parse(req.body));
-    if ('err' in r) { await audit(null, 'auth.2fa_reset_denied', req.ip); return reply.code(r.code).send({ error: r.err }); }
+    if (!r.ok) { await audit(null, 'auth.2fa_reset_denied', req.ip); return reply.code(r.code).send({ error: r.err }); }
     await sendOtp(r.user.id, r.user.email, 'reset2fa');
     await audit(r.user.id, 'auth.2fa_reset_requested', req.ip);
     return { ok: true };
@@ -198,7 +198,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
   app.post('/2fa/reset', { config: { rateLimit: { max: 5, timeWindow: '1 minute' } } }, async (req, reply) => {
     const b = reset2faBody.extend({ code: z.string().regex(/^\d{6}$/) }).parse(req.body);
     const r = await verifyAdminCreds(b);
-    if ('err' in r) return reply.code(r.code).send({ error: r.err });
+    if (!r.ok) return reply.code(r.code).send({ error: r.err });
     if (!(await checkOtp(r.user.id, 'reset2fa', b.code))) return reply.code(400).send({ error: 'INVALID_CODE' });
     await prisma.user.update({ where: { id: r.user.id }, data: { totpEnabled: false, totpSecret: null } });
     await prisma.refreshToken.updateMany({ where: { userId: r.user.id, revokedAt: null }, data: { revokedAt: new Date() } });

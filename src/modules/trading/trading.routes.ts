@@ -4,7 +4,7 @@ import { prisma } from '../../lib/prisma.js';
 import { audit } from '../../lib/audit.js';
 import { money, idemKey } from '../wallet/money.js';
 import { INSTRUMENTS } from '../market/instruments.js';
-import { openPosition, closePosition, px, pnlOf } from './engine.js';
+import { openPosition, closePosition, pxAny, pnlOf } from './engine.js';
 import { mirrorOpen, mirrorClose } from '../copy/copy.js';
 
 const MIN_TRADE = 1_000n; // $10
@@ -19,7 +19,7 @@ const openBody = z.object({
 const listQ = z.object({ status: z.enum(['OPEN', 'CLOSED']).default('OPEN') });
 
 const view = (position: any) => {
-  const current = position.status === 'OPEN' ? px(position.instrument.symbol) : position.exitPrice;
+  const current = position.status === 'OPEN' ? pxAny(position.instrument.symbol) : position.exitPrice;
   const pnl = current ? pnlOf(position.side, position.units, position.entryPrice, current) : null;
   return {
     id: position.id,

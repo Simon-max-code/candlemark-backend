@@ -5,6 +5,7 @@ export const TIERS = [
   { tier: 2, min: 1_000_000n, wdPct: 20, maxOpen: 1 },
   { tier: 3, min: 2_500_000n, wdPct: 30, maxOpen: 50 },
   { tier: 4, min: 3_500_000n, wdPct: 50, maxOpen: 50 },
+  { tier: 5, min: 5_000_000n, wdPct: 70, maxOpen: 50 },
 ];
 
 export async function tierOf(userId: string) {
@@ -20,3 +21,6 @@ export async function tierOf(userId: string) {
   const progress = next ? Math.min(100, Math.floor((Number(total - cur.min) * 100) / Number(next.min - cur.min))) : 100;
   return { tier: cur.tier, wdPct: cur.wdPct, maxOpen: cur.maxOpen, deposited: total.toString(), progress, next: next && { tier: next.tier, min: next.min.toString() } };
 }
+
+export const tradingAccount = (userId: string) =>
+  prisma.account.findFirstOrThrow({ where: { userId, type: 'LIVE' } });

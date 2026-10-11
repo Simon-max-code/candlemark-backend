@@ -9,7 +9,7 @@ import { money, idemKey } from './money.js';
 import { notify, usd } from '../../lib/notify.js';
 import { tierOf } from '../tier/tier.js';
 
-const MIN_DEPOSIT = 10_000n; // $100
+const MIN_DEPOSIT = 1n;
 const MIN_WITHDRAW = 1_000n; // $10
 
 const MAGIC = [[0xff, 0xd8, 0xff], [0x89, 0x50, 0x4e, 0x47], [0x25, 0x50, 0x44, 0x46]];

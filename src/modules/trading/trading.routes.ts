@@ -6,7 +6,7 @@ import { money, idemKey } from '../wallet/money.js';
 import { INSTRUMENTS } from '../market/instruments.js';
 import { openPosition, closePosition, pxAny, pnlOf } from './engine.js';
 import { mirrorOpen, mirrorClose } from '../copy/copy.js';
-import { tierOf } from '../tier/tier.js';
+import { tierOf, tradingAccount } from '../tier/tier.js';
 
 const MIN_TRADE = 1_000n; // $10
 const num = z.string().regex(/^\d{1,12}(\.\d{1,10})?$/);
@@ -45,7 +45,6 @@ const view = (position: any) => {
 
 export const tradeRoutes: FastifyPluginAsync = async (app) => {
   app.addHook('preHandler', app.auth);
-  const myAccount = (userId: string) => prisma.account.findFirstOrThrow({ where: { userId, type: 'LIVE' } });
 
   app.post('/', { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } }, async (req, reply) => {
     const key = idemKey.parse(req.headers['idempotency-key']);
@@ -53,7 +52,7 @@ export const tradeRoutes: FastifyPluginAsync = async (app) => {
     if (body.amount < MIN_TRADE)
       return reply.code(400).send({ error: 'BELOW_MIN', min: MIN_TRADE.toString() });
     const { maxOpen } = await tierOf(req.user.sub);
-    const account = await myAccount(req.user.sub);
+    const account = await tradingAccount(req.user.sub);
     const position = await openPosition({
       accountId: account.id,
       sym: body.symbol,
@@ -71,7 +70,7 @@ export const tradeRoutes: FastifyPluginAsync = async (app) => {
 
   app.get('/', async (req) => {
     const { status } = listQ.parse(req.query);
-    const account = await myAccount(req.user.sub);
+    const account = await tradingAccount(req.user.sub);
     const positions = await prisma.position.findMany({
       where: { accountId: account.id, status },
       include: { instrument: true },
@@ -81,10 +80,11 @@ export const tradeRoutes: FastifyPluginAsync = async (app) => {
     return { items: positions.map(view) };
   });
 
-  app.post('/:id/close', async (req) => {
+  app.post('/:id/close', async (req, reply) => {
     const { id } = z.object({ id: z.string().min(1).max(40) }).parse(req.params);
-    const account = await myAccount(req.user.sub);
-    const result = await closePosition(id, account.id);
+    const p = await prisma.position.findUnique({ where: { id }, select: { account: { select: { userId: true } } } });
+    if (p?.account.userId !== req.user.sub) return reply.code(404).send({ error: 'NOT_FOUND' });
+    const result = await closePosition(id);
     mirrorClose(id).catch((error) => app.log.error(error));
     await audit(req.user.sub, 'trade.close', req.ip, { id });
     return result;

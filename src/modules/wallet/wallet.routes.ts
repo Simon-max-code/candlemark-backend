@@ -2,12 +2,14 @@ import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../../lib/prisma.js';
 import { balanceOf } from './ledger.js';
+import { tradingAccount } from '../tier/tier.js';
 
 const q = z.object({
   type: z.enum(['DEMO_FUNDING', 'DEPOSIT', 'WITHDRAWAL', 'TRADE_PNL', 'COPY_FEE', 'ADJUSTMENT']).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
   cursor: z.string().optional(),
 });
+const balanceQ = z.object({ acct: z.literal('trading').optional() });
 
 export const walletRoutes: FastifyPluginAsync = async (app) => {
   app.addHook('preHandler', app.auth);
@@ -16,9 +18,9 @@ export const walletRoutes: FastifyPluginAsync = async (app) => {
     prisma.account.findFirstOrThrow({ where: { userId, type: 'LIVE' } });
 
   app.get('/balance', async (req) => {
-    const a = await myAccount(req.user.sub);
-    const available = await balanceOf(a.id);
-    return { accountId: a.id, currency: a.currency, available: available.toString() };
+    const { acct } = balanceQ.parse(req.query);
+    const a = acct ? await tradingAccount(req.user.sub) : await myAccount(req.user.sub);
+    return { accountId: a.id, type: a.type, currency: a.currency, available: (await balanceOf(a.id)).toString() };
   });
 
   app.get('/ledger', async (req) => {

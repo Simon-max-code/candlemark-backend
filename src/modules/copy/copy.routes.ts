@@ -5,6 +5,7 @@ import { audit } from '../../lib/audit.js';
 import { money } from '../wallet/money.js';
 import { balanceOf } from '../wallet/ledger.js';
 import { chargeFee } from './copy.js';
+import { tradingAccount } from '../tier/tier.js';
 
 const startBody = z.object({ allocation: money });
 const id = z.object({ id: z.string().min(1).max(40) });
@@ -25,7 +26,7 @@ const mentorView = (m: any) => ({
 
 export const copyRoutes: FastifyPluginAsync = async (app) => {
   app.addHook('preHandler', app.auth);
-  const myAccount = (userId: string) => prisma.account.findFirstOrThrow({ where: { userId, type: 'LIVE' } });
+  const myAccount = tradingAccount;
 
   app.get('/mentors', async () => {
     const rows = await prisma.mentor.findMany({

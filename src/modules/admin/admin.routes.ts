@@ -33,7 +33,7 @@ const stats = z.object({
   gain: z.number().min(-100).max(100000), winRate: z.number().min(0).max(100),
   trades: z.number().int().min(0), capital: z.number().min(0),
   copiers: z.number().int().min(0), avgTime: s(30),
-  tier: z.number().int().min(1).max(4),
+  tier: z.number().int().min(1).max(5),
 }).partial().strict();
 const mentorFields = z.object({
   displayName: s(80), handle, tag: s(80), bio: s(500),
@@ -71,7 +71,7 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
       prisma.kycProfile.count({ where: { status: 'PENDING' } }),
       prisma.deposit.count({ where: { status: 'PENDING' } }),
       prisma.withdrawal.count({ where: { status: 'PENDING' } }),
-      prisma.ledgerEntry.aggregate({ _sum: { amount: true } }),
+      prisma.ledgerEntry.aggregate({ where: { account: { type: 'LIVE' } }, _sum: { amount: true } }),
     ]);
     return { users, pendingKyc, pendingDeposits, pendingWithdrawals, totalBalance: (total._sum.amount ?? 0n).toString() };
   });
@@ -85,7 +85,7 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
         ...(status && { status }),
         ...(q && { OR: [{ email: { contains: q, mode: 'insensitive' as const } }, { name: { contains: q, mode: 'insensitive' as const } }] }),
       },
-      include: { kyc: { select: { status: true } }, accounts: { select: { id: true } } },
+      include: { kyc: { select: { status: true } }, accounts: { where: { type: 'LIVE' }, select: { id: true } } },
       orderBy: { createdAt: 'desc' }, take: limit + 1,
       ...(cursor && { cursor: { id: cursor }, skip: 1 }),
     });
@@ -108,7 +108,7 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
   app.get('/users/:id', async (req, reply) => {
     const { id } = idP.parse(req.params);
     const user = await prisma.user.findUnique({
-      where: { id }, include: { kyc: true, accounts: true, mentor: { select: { id: true, handle: true } } },
+      where: { id }, include: { kyc: true, accounts: { where: { type: 'LIVE' } }, mentor: { select: { id: true, handle: true } } },
     });
     if (!user) return reply.code(404).send(NF);
     const account = user.accounts[0];
@@ -311,6 +311,10 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
     } catch (error: any) {
       if (error.code === 'P2002') return reply.code(409).send({ error: 'HANDLE_TAKEN' });
       throw error;
+    }
+    if (body.verified) {
+      await prisma.user.updateMany({ where: { id: mentor.userId, role: 'USER' }, data: { role: 'MENTOR' } });
+      void notify(mentor.userId, 'Mentor application approved', 'You can now log in to the mentor portal.', true).catch(() => {});
     }
     await audit(req.user.sub, 'admin.mentor_update', req.ip, { id, fields: Object.keys(body) });
     return { ok: true };

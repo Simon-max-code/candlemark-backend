@@ -22,9 +22,9 @@ export const tpl = (title: string, body: string, cta?: { label: string; url: str
     `<tr><td style="padding:11px 14px;color:#5C6577;font-size:13px;border-bottom:1px solid #EEF1F4">${esc(k)}</td><td style="padding:11px 14px;text-align:right;font-weight:600;border-bottom:1px solid #EEF1F4">${esc(v)}</td></tr>`).join('')}</table>` : '') +
   (cta ? `<a href="${esc(cta.url)}" style="display:inline-block;background:#00E6A0;color:#02110C;font-weight:700;text-decoration:none;padding:13px 26px;border-radius:10px">${esc(cta.label)}</a>` : ''));
 
-export const otpTpl = (code: string, purpose: 'verify' | 'reset') => shell(`Your code is ${code}`,
-  `<h1 style="margin:0 0 12px;font-size:22px;color:#0A0D12">${purpose === 'verify' ? 'Verify your email' : 'Reset your password'}</h1>
-<p style="margin:0 0 22px">${purpose === 'verify' ? 'Welcome to MentorsEdgePro. Enter this code to confirm your email address.' : 'Use this code to choose a new password.'}</p>
+export const otpTpl = (code: string, purpose: 'verify' | 'reset' | 'reset2fa') => shell(`Your code is ${code}`,
+  `<h1 style="margin:0 0 12px;font-size:22px;color:#0A0D12">${purpose === 'verify' ? 'Verify your email' : purpose === 'reset2fa' ? 'Reset two-factor authentication' : 'Reset your password'}</h1>
+<p style="margin:0 0 22px">${purpose === 'verify' ? 'Welcome to MentorsEdgePro. Enter this code to confirm your email address.' : purpose === 'reset2fa' ? 'Use this code to reset two-factor authentication on your admin account. If you did not request this, change your password immediately.' : 'Use this code to choose a new password.'}</p>
 <div style="font:700 34px 'Courier New',monospace;letter-spacing:10px;text-align:center;background:#F0FBF7;border:1px dashed #00C98A;border-radius:12px;padding:18px 0 18px 10px;color:#0A0D12">${esc(code)}</div>
 <p style="margin:22px 0 0;font-size:13px;color:#5C6577">This code expires in 10 minutes. If you didn't request it, you can safely ignore this email.</p>`);
 

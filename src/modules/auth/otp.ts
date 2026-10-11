@@ -3,10 +3,10 @@ import { redis } from '../../lib/redis.js';
 import { env } from '../../config/env.js';
 import { sendMail, otpTpl } from '../../lib/mail.js';
 
-export type Purpose = 'verify' | 'reset';
+export type Purpose = 'verify' | 'reset' | 'reset2fa';
 const TTL = 600, MAX_TRIES = 5;
 const hash = (code: string) => createHmac('sha256', env.JWT_REFRESH_SECRET).update(code).digest('hex');
-const subj: Record<Purpose, string> = { verify: 'Verify your email', reset: 'Reset your password' };
+const subj: Record<Purpose, string> = { verify: 'Verify your email', reset: 'Reset your password', reset2fa: 'Reset your two-factor authentication' };
 
 export async function sendOtp(userId: string, email: string, purpose: Purpose) {
   if (!(await redis.set(`otp:cool:${purpose}:${userId}`, '1', 'EX', 60, 'NX'))) return false;

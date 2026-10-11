@@ -8,6 +8,7 @@ import { encrypt, decrypt } from '../../lib/crypto.js';
 import { audit } from '../../lib/audit.js';
 import { env } from '../../config/env.js';
 import { sendOtp, checkOtp } from './otp.js';
+import { tierOf } from '../tier/tier.js';
 
 authenticator.options = { window: 1 }; // tolerate ±30s clock drift
 
@@ -157,7 +158,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       include: { kyc: { select: { status: true } }, accounts: { select: { id: true, type: true, currency: true } } },
     });
     if (!u) return reply.code(401).send({ error: 'UNAUTHORIZED' });
-    return { ...publicUser(u), createdAt: u.createdAt, kycStatus: u.kyc?.status ?? 'NOT_STARTED', accounts: u.accounts };
+    return { ...publicUser(u), createdAt: u.createdAt, kycStatus: u.kyc?.status ?? 'NOT_STARTED', accounts: u.accounts, tier: await tierOf(u.id) };
   });
 
   app.patch('/me', { preHandler: app.auth }, async (req) => {

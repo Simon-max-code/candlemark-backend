@@ -4,9 +4,10 @@ import { z } from 'zod';
 import { prisma } from '../../lib/prisma.js';
 import { audit } from '../../lib/audit.js';
 import { uploadPrivate } from '../../lib/cloudinary.js';
-import { postEntry } from './ledger.js';
+import { postEntry, balanceOf } from './ledger.js';
 import { money, idemKey } from './money.js';
 import { notify, usd } from '../../lib/notify.js';
+import { tierOf } from '../tier/tier.js';
 
 const MIN_DEPOSIT = 10_000n; // $100
 const MIN_WITHDRAW = 1_000n; // $10
@@ -85,8 +86,16 @@ export const fundsRoutes: FastifyPluginAsync = async (app) => {
     const kyc = await prisma.kycProfile.findUnique({ where: { userId: req.user.sub } });
     if (kyc?.status !== 'APPROVED') return reply.code(403).send({ error: 'KYC_REQUIRED' });
 
+    const { wdPct } = await tierOf(req.user.sub);
     const account = await myAccount(req.user.sub);
-    const withdrawal = await prisma.$transaction(async (tx) => {
+    const out = await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "Account" WHERE id = ${account.id} FOR UPDATE`;
+      const used = (await tx.withdrawal.aggregate({
+        where: { accountId: account.id, status: { not: 'REJECTED' }, createdAt: { gte: new Date(Date.now() - 30 * 864e5) } },
+        _sum: { amountMinor: true },
+      }))._sum.amountMinor ?? 0n;
+      const cap = ((await balanceOf(account.id, tx)) + used) * BigInt(wdPct) / 100n;
+      if (used + body.amount > cap) return { row: undefined, cap, used };
       const row = await tx.withdrawal.create({
         data: {
           accountId: account.id,
@@ -96,16 +105,12 @@ export const fundsRoutes: FastifyPluginAsync = async (app) => {
           idempotencyKey,
         },
       });
-      await postEntry(tx, {
-        accountId: account.id,
-        amount: -body.amount,
-        type: 'WITHDRAWAL',
-        key: `wd-hold:${row.id}`,
-        refType: 'Withdrawal',
-        refId: row.id,
-      });
-      return row;
+      await postEntry(tx, { accountId: account.id, amount: -body.amount, type: 'WITHDRAWAL', key: `wd-hold:${row.id}`, refType: 'Withdrawal', refId: row.id });
+      return { row };
     });
+    if (!out.row)
+      return reply.code(400).send({ error: 'TIER_LIMIT', limit: out.cap.toString(), remaining: (out.cap > out.used ? out.cap - out.used : 0n).toString() });
+    const withdrawal = out.row;
     await audit(req.user.sub, 'withdrawal.create', req.ip, { id: withdrawal.id });
     void notify(req.user.sub, 'Withdrawal requested', `Your withdrawal of $${usd(body.amount)} is pending review.`, true).catch(() => {});
     return reply.code(201).send(wd(withdrawal));

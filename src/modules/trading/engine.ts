@@ -29,7 +29,7 @@ export const pnlOf = (side: 'BUY' | 'SELL', units: Dec, entry: Dec, cur: Dec) =>
 
 export async function openPosition(a: {
   accountId: string; sym: string; side: 'BUY' | 'SELL'; amount: bigint;
-  sl?: string; tp?: string; key: string; sourceId?: string;
+  sl?: string; tp?: string; key: string; sourceId?: string; maxOpen?: number;
 }) {
   const price = px(a.sym);
   if (!price) throw err('PRICE_UNAVAILABLE', 503);
@@ -42,7 +42,7 @@ export async function openPosition(a: {
     const existing = await tx.ledgerEntry.findUnique({ where: { idempotencyKey: key } });
     if (existing) return tx.position.findUniqueOrThrow({ where: { id: existing.refId! }, include: { instrument: true } });
 
-    if ((await tx.position.count({ where: { accountId: a.accountId, status: 'OPEN' } })) >= 50)
+    if ((await tx.position.count({ where: { accountId: a.accountId, status: 'OPEN' } })) >= (a.maxOpen ?? 50))
       throw err('TOO_MANY_POSITIONS');
     const instrument = await tx.instrument.findUniqueOrThrow({ where: { symbol: a.sym } });
     const units = new D(a.amount.toString()).div(100).div(price).toDecimalPlaces(10);

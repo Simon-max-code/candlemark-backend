@@ -33,6 +33,7 @@ const stats = z.object({
   gain: z.number().min(-100).max(100000), winRate: z.number().min(0).max(100),
   trades: z.number().int().min(0), capital: z.number().min(0),
   copiers: z.number().int().min(0), avgTime: s(30),
+  tier: z.number().int().min(1).max(4),
 }).partial().strict();
 const mentorFields = z.object({
   displayName: s(80), handle, tag: s(80), bio: s(500),

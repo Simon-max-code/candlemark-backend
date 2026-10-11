@@ -6,6 +6,7 @@ import { money, idemKey } from '../wallet/money.js';
 import { INSTRUMENTS } from '../market/instruments.js';
 import { openPosition, closePosition, pxAny, pnlOf } from './engine.js';
 import { mirrorOpen, mirrorClose } from '../copy/copy.js';
+import { tierOf } from '../tier/tier.js';
 
 const MIN_TRADE = 1_000n; // $10
 const num = z.string().regex(/^\d{1,12}(\.\d{1,10})?$/);
@@ -51,6 +52,7 @@ export const tradeRoutes: FastifyPluginAsync = async (app) => {
     const body = openBody.parse(req.body);
     if (body.amount < MIN_TRADE)
       return reply.code(400).send({ error: 'BELOW_MIN', min: MIN_TRADE.toString() });
+    const { maxOpen } = await tierOf(req.user.sub);
     const account = await myAccount(req.user.sub);
     const position = await openPosition({
       accountId: account.id,
@@ -60,6 +62,7 @@ export const tradeRoutes: FastifyPluginAsync = async (app) => {
       sl: body.stopLoss,
       tp: body.takeProfit,
       key: `${account.id}:${key}`,
+      maxOpen,
     });
     await audit(req.user.sub, 'trade.open', req.ip, { id: position.id, sym: body.symbol, side: body.side });
     mirrorOpen(req.user.sub, position).catch((error) => app.log.error(error));

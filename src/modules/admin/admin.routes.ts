@@ -8,7 +8,7 @@ import { decrypt } from '../../lib/crypto.js';
 import { redis } from '../../lib/redis.js';
 import { audit } from '../../lib/audit.js';
 import { env } from '../../config/env.js';
-import { signedUrl } from '../../lib/cloudinary.js';
+import { signedUrl, uploadAvatar, isImage } from '../../lib/cloudinary.js';
 import { postEntry, balanceOf } from '../wallet/ledger.js';
 import { money, idemKey } from '../wallet/money.js';
 import { notify, usd } from '../../lib/notify.js';
@@ -162,9 +162,24 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
   app.get('/kyc', async (req) => {
     const { status } = statusQ.parse(req.query);
     const rows = await prisma.kycProfile.findMany({
-      where: { status }, include: { user: { select: { email: true, name: true } } }, orderBy: { updatedAt: 'asc' }, take: 100,
+      where: { status },
+      include: {
+        user: { select: { email: true, name: true, avatarUrl: true } },
+        docs: { where: { kind: 'ID_FRONT' }, take: 1 },
+      },
+      orderBy: { updatedAt: 'asc' },
+      take: 100,
     });
-    return { items: rows.map((kyc) => ({ userId: kyc.userId, email: kyc.user.email, name: kyc.user.name, status: kyc.status, data: kyc.data, submittedAt: kyc.updatedAt })) };
+    return { items: rows.map((kyc) => ({
+      userId: kyc.userId,
+      email: kyc.user.email,
+      name: kyc.user.name,
+      status: kyc.status,
+      data: kyc.data,
+      submittedAt: kyc.updatedAt,
+      avatar: kyc.user.avatarUrl,
+      idUrl: kyc.docs[0] ? signedUrl(kyc.docs[0].publicId) : null,
+    })) };
   });
 
   app.post('/kyc/:id/review', async (req, reply) => {
@@ -317,6 +332,21 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
       void notify(mentor.userId, 'Mentor application approved', 'You can now log in to the mentor portal.', true).catch(() => {});
     }
     await audit(req.user.sub, 'admin.mentor_update', req.ip, { id, fields: Object.keys(body) });
+    return { ok: true };
+  });
+
+  app.post('/mentors/:id/photo', async (req, reply) => {
+    const { id } = idP.parse(req.params);
+    const mentor = await prisma.mentor.findUnique({ where: { id } });
+    if (!mentor) return reply.code(404).send(NF);
+    const file = await req.file();
+    if (!file) return reply.code(400).send({ error: 'NO_FILE' });
+    const buffer = await file.toBuffer();
+    if (file.file.truncated) return reply.code(413).send({ error: 'FILE_TOO_LARGE' });
+    if (!isImage(buffer)) return reply.code(400).send({ error: 'BAD_FILE_TYPE' });
+    const avatarUrl = await uploadAvatar(buffer, mentor.userId);
+    await prisma.user.update({ where: { id: mentor.userId }, data: { avatarUrl } });
+    await audit(req.user.sub, 'admin.mentor_photo', req.ip, { id });
     return { ok: true };
   });
 

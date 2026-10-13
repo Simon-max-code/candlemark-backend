@@ -15,6 +15,7 @@ const mentorView = (m: any) => ({
   id: m.id,
   handle: m.handle,
   name: m.displayName ?? m.user.name,
+  avatar: m.user.avatarUrl,
   tag: m.tag,
   bio: m.bio,
   risk: m.riskScore,
@@ -32,7 +33,7 @@ export const copyRoutes: FastifyPluginAsync = async (app) => {
     const rows = await prisma.mentor.findMany({
       where: { verified: true },
       include: {
-        user: { select: { name: true } },
+        user: { select: { name: true, avatarUrl: true } },
         _count: { select: { copiers: { where: { status: 'ACTIVE' } } } },
       },
       orderBy: { createdAt: 'asc' },
@@ -45,13 +46,14 @@ export const copyRoutes: FastifyPluginAsync = async (app) => {
     const account = await myAccount(req.user.sub);
     const rows = await prisma.copyRelation.findMany({
       where: { accountId: account.id, status: { not: 'STOPPED' } },
-      include: { mentor: { include: { user: { select: { name: true } } } } },
+      include: { mentor: { include: { user: { select: { name: true, avatarUrl: true } } } } },
     });
     return {
       items: rows.map((copy) => ({
         id: copy.id,
         mentorId: copy.mentorId,
         name: copy.mentor.displayName ?? copy.mentor.user.name,
+        avatar: copy.mentor.user.avatarUrl,
         handle: copy.mentor.handle,
         allocation: copy.allocationMinor.toString(),
         status: copy.status,

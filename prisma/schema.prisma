@@ -70,6 +70,7 @@ model User {
   passwordHash  String
   name          String
   country       String?
+  avatarUrl     String?
   role          Role     @default(USER)
   status        UserStatus @default(ACTIVE)
   totpSecret    String?

@@ -27,6 +27,7 @@ import { calendarRoutes } from './modules/calendar/calendar.routes.js';
 import { adminRoutes } from './modules/admin/admin.routes.js';
 import { notificationRoutes } from './modules/notifications/notifications.routes.js';
 import { supportRoutes } from './modules/support/support.routes.js';
+import { profileRoutes } from './modules/profile/profile.routes.js';
 
 export async function buildApp() {
   const app = Fastify({
@@ -59,6 +60,7 @@ export async function buildApp() {
   await app.register(authRoutes, { prefix: '/auth' });
   await app.register(multipart, { limits: { fileSize: 5 * 1024 * 1024, files: 1 } });
   await app.register(kycRoutes, { prefix: '/kyc' });
+  await app.register(profileRoutes, { prefix: '/profile' });
   await app.register(walletRoutes, { prefix: '/wallet' });
   await app.register(fundsRoutes, { prefix: '/wallet' });
   await app.register(marketRoutes, { prefix: '/markets' });

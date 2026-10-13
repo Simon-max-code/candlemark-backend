@@ -9,6 +9,7 @@ import { audit } from '../../lib/audit.js';
 import { env } from '../../config/env.js';
 import { sendOtp, checkOtp } from './otp.js';
 import { tierOf } from '../tier/tier.js';
+import { fxFor } from '../../lib/fx.js';
 
 authenticator.options = { window: 1 }; // tolerate ±30s clock drift
 
@@ -42,8 +43,8 @@ const loginBody = z.object({
 });
 const codeBody = z.object({ code: z.string().regex(/^\d{6}$/) });
 
-const publicUser = (u: { id: string; email: string; name: string; country: string | null; role: string; totpEnabled: boolean }) =>
-  ({ id: u.id, email: u.email, name: u.name, country: u.country, role: u.role, totpEnabled: u.totpEnabled });
+const publicUser = (u: { id: string; email: string; name: string; country: string | null; role: string; totpEnabled: boolean; avatarUrl: string | null }) =>
+  ({ id: u.id, email: u.email, name: u.name, country: u.country, role: u.role, totpEnabled: u.totpEnabled, avatarUrl: u.avatarUrl });
 
 export const authRoutes: FastifyPluginAsync = async (app) => {
   app.post('/register', { config: { rateLimit: { max: 5, timeWindow: '1 minute' } } }, async (req, reply) => {
@@ -158,7 +159,14 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       include: { kyc: { select: { status: true } }, accounts: { select: { id: true, type: true, currency: true } } },
     });
     if (!u) return reply.code(401).send({ error: 'UNAUTHORIZED' });
-    return { ...publicUser(u), createdAt: u.createdAt, kycStatus: u.kyc?.status ?? 'NOT_STARTED', accounts: u.accounts, tier: await tierOf(u.id) };
+    return {
+      ...publicUser(u),
+      createdAt: u.createdAt,
+      kycStatus: u.kyc?.status ?? 'NOT_STARTED',
+      accounts: u.accounts,
+      tier: await tierOf(u.id),
+      fx: await fxFor(u.accounts.find((account) => account.type === 'LIVE')?.currency),
+    };
   });
 
   app.patch('/me', { preHandler: app.auth }, async (req) => {

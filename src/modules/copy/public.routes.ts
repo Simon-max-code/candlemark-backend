@@ -6,7 +6,7 @@ export const publicMentorRoutes: FastifyPluginAsync = async (app) => {
     const rows = await prisma.mentor.findMany({
       where: { verified: true },
       include: {
-        user: { select: { name: true } },
+        user: { select: { name: true, avatarUrl: true } },
         _count: { select: { copiers: { where: { status: 'ACTIVE' } } } },
       },
       orderBy: { createdAt: 'asc' },
@@ -17,6 +17,7 @@ export const publicMentorRoutes: FastifyPluginAsync = async (app) => {
         id: m.id,
         handle: m.handle,
         name: m.displayName ?? m.user.name,
+        avatar: m.user.avatarUrl,
         tag: m.tag,
         bio: m.bio,
         risk: m.riskScore,

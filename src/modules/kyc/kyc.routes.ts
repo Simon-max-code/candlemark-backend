@@ -5,7 +5,6 @@ import { audit } from '../../lib/audit.js';
 import { uploadPrivate, isImage } from '../../lib/cloudinary.js';
 
 const s = (max: number, min = 1) => z.string().trim().min(min).max(max);
-const CCY = ['USD', 'EUR', 'GBP', 'JPY', 'CHF', 'AUD', 'CAD', 'NZD', 'SGD', 'HKD', 'ZAR', 'AED', 'NGN'];
 const kycBody = z.object({
   title: z.enum(['Mr', 'Mrs', 'Ms', 'Dr']),
   firstName: s(60), lastName: s(60),
@@ -15,7 +14,6 @@ const kycBody = z.object({
   employment: s(40), incomeSource: s(60), industry: s(120), education: s(40),
   annual: s(30), netWorth: s(30), volume: s(30), frequency: s(40),
   purpose: s(300, 3), experience: s(60),
-  currency: s(60).refine((value) => CCY.includes(value.slice(0, 3)), 'Unsupported currency'),
 }).refine((b) => {
   const [d, m, y] = b.dob.split('/').map(Number);
   const dt = new Date(y, m - 1, d);
@@ -66,10 +64,6 @@ export const kycRoutes: FastifyPluginAsync = async (app) => {
     if (!(await prisma.kycDocument.count({ where: { kycId: k.id, kind: 'ID_FRONT' } })))
       return reply.code(400).send({ error: 'ID_REQUIRED' });
     await prisma.kycProfile.update({ where: { id: k.id }, data: { data, status: 'PENDING' } });
-    await prisma.account.updateMany({
-      where: { userId: req.user.sub, type: 'LIVE' },
-      data: { currency: data.currency.slice(0, 3) },
-    });
     await audit(req.user.sub, 'kyc.submit', req.ip);
     return { status: 'PENDING' };
   });

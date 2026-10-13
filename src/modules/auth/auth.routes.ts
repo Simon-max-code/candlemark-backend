@@ -9,7 +9,6 @@ import { audit } from '../../lib/audit.js';
 import { env } from '../../config/env.js';
 import { sendOtp, checkOtp } from './otp.js';
 import { tierOf } from '../tier/tier.js';
-import { fxFor } from '../../lib/fx.js';
 
 authenticator.options = { window: 1 }; // tolerate ±30s clock drift
 
@@ -165,7 +164,6 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       kycStatus: u.kyc?.status ?? 'NOT_STARTED',
       accounts: u.accounts,
       tier: await tierOf(u.id),
-      fx: await fxFor(u.accounts.find((account) => account.type === 'LIVE')?.currency),
     };
   });
 

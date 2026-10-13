@@ -262,3 +262,18 @@ model AuditLog {
   createdAt DateTime @default(now())
   @@index([actorId, createdAt])
 }
+
+model Signal {
+  id         String    @id @default(cuid())
+  symbol     String
+  side       Side
+  entry      Decimal   @db.Decimal(28, 10)
+  stopLoss   Decimal   @db.Decimal(28, 10)
+  takeProfit Decimal   @db.Decimal(28, 10)
+  rationale  String
+  source     String
+  status     String    @default("OPEN")
+  createdAt  DateTime  @default(now())
+  closedAt   DateTime?
+  @@index([status, createdAt])
+}

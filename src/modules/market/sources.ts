@@ -1,6 +1,7 @@
 import WebSocket from 'ws';
 import { env } from '../../config/env.js';
 import { setLive } from './feed.js';
+import { yahoo } from './yahoo.js';
 
 const BIN: Record<string, string> = { BTCUSDT: 'BTC/USD', ETHUSDT: 'ETH/USD', SOLUSDT: 'SOL/USD', XRPUSDT: 'XRP/USD' };
 const FH: Record<string, string> = {
@@ -38,8 +39,7 @@ async function finnhub() {
 }
 
 const TD: Record<string, string> = {
-  'XAU/USD': 'XAU/USD', 'XAG/USD': 'XAG/USD', 'WTI': 'WTI/USD', 'NATGAS': 'NG/USD',
-  'US500': 'SPX', 'NAS100': 'IXIC', 'US30': 'DJI', 'UK100': 'FTSE',
+  'XAU/USD': 'XAU/USD', 'XAG/USD': 'XAG/USD',
 };
 
 async function twelve() {
@@ -58,4 +58,17 @@ async function twelve() {
   setInterval(run, 15 * 60_000);
 }
 
-export function startSources() { binance(); void finnhub(); void twelve(); }
+async function yahooPoll() {
+  await Promise.all(['US500', 'NAS100', 'US30', 'UK100', 'WTI', 'NATGAS'].map(async (symbol) => {
+    const meta = (await yahoo(symbol))?.meta;
+    if (meta?.regularMarketPrice) setLive(symbol, meta.regularMarketPrice, meta.chartPreviousClose || meta.previousClose);
+  }));
+}
+
+export function startSources() {
+  binance();
+  void finnhub();
+  void twelve();
+  void yahooPoll();
+  setInterval(() => void yahooPoll(), 60_000);
+}

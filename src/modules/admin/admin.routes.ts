@@ -13,12 +13,23 @@ import { postEntry, balanceOf } from '../wallet/ledger.js';
 import { money, idemKey } from '../wallet/money.js';
 import { notify, usd } from '../../lib/notify.js';
 import { sendMail, tpl, APP } from '../../lib/mail.js';
+import { INSTRUMENTS } from '../market/instruments.js';
 
 const s = (max = 200) => z.string().trim().min(1).max(max);
 const idP = z.object({ id: s(40) });
 const page = z.object({ limit: z.coerce.number().int().min(1).max(100).default(50), cursor: z.string().optional() });
 const statusQ = z.object({ status: z.enum(['PENDING', 'APPROVED', 'REJECTED']).default('PENDING') });
 const review = z.object({ decision: z.enum(['APPROVED', 'REJECTED']), note: z.string().trim().max(500).optional() });
+const num = z.string().regex(/^\d{1,12}(\.\d{1,10})?$/);
+const sig = z.object({
+  symbol: z.enum(INSTRUMENTS.map((instrument) => instrument.sym) as [string, ...string[]]),
+  side: z.enum(['BUY', 'SELL']),
+  entry: num,
+  stopLoss: num,
+  takeProfit: num,
+  rationale: s(500),
+  source: s(80),
+});
 const DENY = { error: 'STEP_UP_REQUIRED' };
 const NF = { error: 'NOT_FOUND' };
 
@@ -348,6 +359,24 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
     await prisma.user.update({ where: { id: mentor.userId }, data: { avatarUrl } });
     await audit(req.user.sub, 'admin.mentor_photo', req.ip, { id });
     return { ok: true };
+  });
+
+  app.post('/signals', async (req, reply) => {
+    const row = await prisma.signal.create({ data: sig.parse(req.body) });
+    await audit(req.user.sub, 'admin.signal_create', req.ip, { id: row.id });
+    return reply.code(201).send({ id: row.id });
+  });
+
+  app.post('/signals/:id/close', async (req, reply) => {
+    const { id } = idP.parse(req.params);
+    const { status } = z.object({ status: z.enum(['HIT_TP', 'HIT_SL', 'CLOSED']) }).parse(req.body);
+    const result = await prisma.signal.updateMany({
+      where: { id, status: 'OPEN' },
+      data: { status, closedAt: new Date() },
+    });
+    if (!result.count) return reply.code(409).send({ error: 'NOT_OPEN' });
+    await audit(req.user.sub, 'admin.signal_close', req.ip, { id, status });
+    return { status };
   });
 
   app.get('/audit', async (req) => {

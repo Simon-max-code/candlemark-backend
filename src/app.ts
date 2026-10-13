@@ -28,6 +28,8 @@ import { adminRoutes } from './modules/admin/admin.routes.js';
 import { notificationRoutes } from './modules/notifications/notifications.routes.js';
 import { supportRoutes } from './modules/support/support.routes.js';
 import { profileRoutes } from './modules/profile/profile.routes.js';
+import { gymRoutes } from './modules/gym/gym.routes.js';
+import { signalRoutes } from './modules/signals/signals.routes.js';
 
 export async function buildApp() {
   const app = Fastify({
@@ -75,6 +77,8 @@ export async function buildApp() {
   await app.register(mentorApplyRoutes, { prefix: '/mentor-apply' });
   await app.register(publicMentorRoutes, { prefix: '/mentors' });
   await app.register(calendarRoutes, { prefix: '/calendar' });
+  await app.register(gymRoutes, { prefix: '/gym' });
+  await app.register(signalRoutes, { prefix: '/signals' });
   await app.register(adminRoutes, { prefix: '/admin' });
   await app.register(notificationRoutes, { prefix: '/notifications' });
   await app.register(supportRoutes, { prefix: '/support' });
